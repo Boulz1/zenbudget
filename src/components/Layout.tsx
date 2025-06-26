@@ -72,7 +72,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {/* Liens pour écran large (md et plus) */}
               <div className="hidden md:block ml-10">
                 <div className="flex items-baseline space-x-4">
-                  <NavLink to="/" className={navLinkStyleDesktop} onClick={closeMobileMenu}>TdB</NavLink>
+                  <NavLink to="/" className={navLinkStyleDesktop} onClick={closeMobileMenu}>Accueil</NavLink>
                   <NavLink to="/transactions" className={navLinkStyleDesktop} onClick={closeMobileMenu}>Transactions</NavLink>
                   <NavLink to="/recurring" className={navLinkStyleDesktop} onClick={closeMobileMenu}>Récurrentes</NavLink>
                   <NavLink to="/categories" className={navLinkStyleDesktop} onClick={closeMobileMenu}>Catégories</NavLink>
@@ -125,7 +125,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         {isMobileMenuOpen && (
           <div className="md:hidden absolute top-16 inset-x-0 bg-white dark:bg-slate-800 shadow-lg rounded-b-md" id="mobile-menu">
             <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3">
-              <NavLink to="/" className={navLinkStyleMobile} onClick={closeMobileMenu}>TdB</NavLink>
+              <NavLink to="/" className={navLinkStyleMobile} onClick={closeMobileMenu}>Accueil</NavLink>
               <NavLink to="/transactions" className={navLinkStyleMobile} onClick={closeMobileMenu}>Transactions</NavLink>
               <NavLink to="/recurring" className={navLinkStyleMobile} onClick={closeMobileMenu}>Récurrentes</NavLink>
               <NavLink to="/categories" className={navLinkStyleMobile} onClick={closeMobileMenu}>Catégories</NavLink>
