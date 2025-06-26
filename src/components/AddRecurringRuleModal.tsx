@@ -1,5 +1,5 @@
 // src/components/AddRecurringRuleModal.tsx
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef } from 'react'; // Ajout de useRef
 import { useForm, Controller } from 'react-hook-form';
 import { useAppContext } from './Layout'; // Ajuster le chemin si nécessaire
 import type { MainCategory, SubCategory, RecurringTransactionRule, Frequency, TransactionFormData } from '../types'; // Assurer que TransactionFormData est importé si on s'en inspire
@@ -15,6 +15,10 @@ interface AddRecurringRuleModalProps {
 
 export function AddRecurringRuleModal({ isOpen, onClose, onSave }: AddRecurringRuleModalProps) {
   const { mainCategories, subCategories } = useAppContext();
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
+  const modalTitleId = "addRecurringRuleModalTitle";
 
   const { register, handleSubmit, control, watch, setValue, reset, formState: { errors } } = useForm<RecurringRuleFormData>({
     defaultValues: {
@@ -39,7 +43,8 @@ export function AddRecurringRuleModal({ isOpen, onClose, onSave }: AddRecurringR
 
   useEffect(() => {
     if (isOpen) {
-      reset({ // Reset avec les valeurs par défaut à chaque ouverture
+      lastFocusedElementRef.current = document.activeElement as HTMLElement;
+      reset({
         name: '',
         type: 'Dépense',
         amount: undefined,
@@ -50,11 +55,57 @@ export function AddRecurringRuleModal({ isOpen, onClose, onSave }: AddRecurringR
         interval: 1,
         startDate: new Date().toISOString().split('T')[0],
         endDate: '',
-        dayOfWeek: 0,
+        dayOfWeek: 0, // Maintenir les valeurs par défaut du reset
         dayOfMonth: 1,
       });
+      closeButtonRef.current?.focus();
+    } else {
+      lastFocusedElementRef.current?.focus();
     }
-  }, [isOpen, reset, mainCategories]);
+  }, [isOpen, reset, mainCategories]); // mainCategories ajouté car utilisé dans le reset
+
+  // Gestion de la touche Echap et du piégeage du focus
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const modalElement = modalRef.current;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (event.key === 'Tab') {
+        const focusableElements = Array.from(
+          modalElement.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null && !el.hasAttribute('disabled')); // Exclure les éléments désactivés
+
+        if (focusableElements.length === 0) {
+          event.preventDefault();
+          return;
+        }
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (event.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            event.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            event.preventDefault();
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isOpen, onClose]);
 
   const availableMainCategories = useMemo(() =>
     mainCategories.filter(cat => {
@@ -117,10 +168,23 @@ export function AddRecurringRuleModal({ isOpen, onClose, onSave }: AddRecurringR
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50 p-4">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6">
+      <div
+        ref={modalRef}
+        className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={modalTitleId}
+      >
         <div className="flex justify-between items-center mb-6">
-          <h2 className="text-xl font-bold">Ajouter une Règle Récurrente</h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500">×</button>
+          <h2 id={modalTitleId} className="text-xl font-bold">Ajouter une Règle Récurrente</h2>
+          <button
+            ref={closeButtonRef}
+            onClick={onClose}
+            className="text-2xl hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-sky-500 rounded"
+            aria-label="Fermer la modale"
+          >
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
