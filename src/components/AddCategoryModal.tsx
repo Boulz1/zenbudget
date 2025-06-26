@@ -1,5 +1,5 @@
 // src/components/AddCategoryModal.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react'; // Ajout de useRef
 import { useForm, Controller } from 'react-hook-form';
 import type { MainCategory, SubCategory, BudgetType } from '../types';
 
@@ -32,6 +32,11 @@ export function AddCategoryModal({
   initialType = 'main',
   initialParentCategoryId
 }: AddCategoryModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null); // Pour le focus initial
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null); // Pour restaurer le focus
+
+  const modalTitleId = "addCategoryModalTitle";
 
   const { register, handleSubmit, control, watch, setValue, reset, formState: { errors } } = useForm<FormValues>({
     defaultValues: {
@@ -49,6 +54,7 @@ export function AddCategoryModal({
 
   useEffect(() => {
     if (isOpen) {
+      lastFocusedElementRef.current = document.activeElement as HTMLElement;
       reset({
         categoryType: initialType,
         mainCatName: '',
@@ -58,8 +64,64 @@ export function AddCategoryModal({
                        ? (initialParentCategoryId || mainCategories[0]?.id || '')
                        : (mainCategories[0]?.id || ''),
       });
+      // Focus sur le bouton de fermeture lors de l'ouverture
+      closeButtonRef.current?.focus();
+    } else {
+      // Restaurer le focus quand la modale se ferme
+      lastFocusedElementRef.current?.focus();
     }
   }, [isOpen, initialType, initialParentCategoryId, mainCategories, reset]);
+
+  // Gestion de la touche Echap et du piégeage du focus
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const modalElement = modalRef.current;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+
+      if (event.key === 'Tab') {
+        const focusableElements = Array.from(
+          modalElement.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null); // S'assurer qu'ils sont visibles
+
+        if (focusableElements.length === 0) {
+          event.preventDefault();
+          return;
+        }
+
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (event.shiftKey) { // Shift + Tab
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            event.preventDefault();
+          }
+        } else { // Tab
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            event.preventDefault();
+          }
+        }
+      }
+    };
+
+    // Utiliser la capture pour l'événement keydown sur le document entier pour Echap
+    // et sur la modale pour le Tab trapping.
+    document.addEventListener('keydown', handleKeyDown, true);
+
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isOpen, onClose]);
+
 
   // Ensure parentCatId is valid if type is 'sub'
   useEffect(() => {
@@ -98,11 +160,27 @@ export function AddCategoryModal({
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50"
+         // Ne pas mettre role="dialog" ici, mais sur le panneau interne pour une meilleure structure.
+    >
+      <div
+        ref={modalRef}
+        className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={modalTitleId}
+        // aria-describedby="optionalDescriptionId" // Si vous avez une description
+      >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Ajouter une Catégorie</h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500">×</button>
+          <h2 id={modalTitleId} className="text-xl font-bold">Ajouter une Catégorie</h2>
+          <button
+            ref={closeButtonRef}
+            onClick={onClose}
+            className="text-2xl hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-sky-500 rounded"
+            aria-label="Fermer la modale"
+          >
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)}>
