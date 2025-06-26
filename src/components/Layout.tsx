@@ -53,6 +53,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   {/* On utilise NavLink pour une navigation côté client sans rechargement de page */}
                   <NavLink to="/" className={navLinkStyle}>TdB</NavLink>
                   <NavLink to="/transactions" className={navLinkStyle}>Transactions</NavLink>
+                  <NavLink to="/recurring" className={navLinkStyle}>Récurrentes</NavLink> {/* Ajout du lien */}
                   <NavLink to="/categories" className={navLinkStyle}>Catégories</NavLink>
                   <NavLink to="/settings" className={navLinkStyle}>Paramètres</NavLink>
                 </div>

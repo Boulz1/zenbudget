@@ -9,7 +9,8 @@ import { SettingsPage } from './pages/SettingsPage.tsx';
 import { NewTransactionPage } from './pages/NewTransactionPage.tsx';
 import { TransactionsListPage } from './pages/TransactionsListPage.tsx';
 import { DashboardPage } from './pages/DashboardPage.tsx';
-import { EditTransactionPage } from './pages/EditTransactionPage.tsx'; // Importer la nouvelle page
+import { EditTransactionPage } from './pages/EditTransactionPage.tsx';
+import { RecurringTransactionsPage } from './pages/RecurringTransactionsPage.tsx'; // Importer la nouvelle page
 
 const router = createBrowserRouter([
   {
@@ -39,6 +40,10 @@ const router = createBrowserRouter([
       {
         path: 'settings',
         element: <SettingsPage />,
+      },
+      {
+        path: 'recurring', // Nouvelle route pour les transactions récurrentes
+        element: <RecurringTransactionsPage />,
       },
     ],
   },
