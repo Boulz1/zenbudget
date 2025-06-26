@@ -139,10 +139,11 @@ export function RecurringTransactionsPage() {
           <p className="mt-2 text-sm">Cliquez sur "Ajouter une Règle" pour commencer.</p>
         </div>
       ) : (
-        <div className="bg-white dark:bg-slate-800 shadow-md rounded-xl overflow-hidden">
-          <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
-            <thead className="bg-slate-50 dark:bg-slate-700/50">
-              <tr>
+        <div className="bg-white dark:bg-slate-800 shadow-md rounded-xl"> {/* overflow-hidden retiré */}
+          <div className="overflow-x-auto"> {/* Nouveau div wrapper pour le défilement */}
+            <table className="min-w-full divide-y divide-slate-200 dark:divide-slate-700">
+              <thead className="bg-slate-50 dark:bg-slate-700/50">
+                <tr>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Nom</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Montant</th>
                 <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-300 uppercase tracking-wider">Fréquence</th>
@@ -184,7 +185,8 @@ export function RecurringTransactionsPage() {
                 </tr>
               ))}
             </tbody>
-          </table>
+            </table>
+          </div>
         </div>
       )}
       <ConfirmationModal
