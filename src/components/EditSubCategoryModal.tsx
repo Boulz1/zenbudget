@@ -1,8 +1,9 @@
 // src/components/EditSubCategoryModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import type { SubCategory, MainCategory } from '../types';
 
-export interface EditSubCategoryFormData {
+export interface EditSubCategoryFormData { // Renommé pour correspondre au nom du fichier
   name: string;
   parentCategoryId: string;
 }
@@ -16,30 +17,26 @@ interface EditSubCategoryModalProps {
 }
 
 export function EditSubCategoryModal({ isOpen, onClose, onSave, subCategory, mainCategories }: EditSubCategoryModalProps) {
-  const [name, setName] = useState('');
-  const [parentCategoryId, setParentCategoryId] = useState('');
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<EditSubCategoryFormData>();
 
   useEffect(() => {
     if (subCategory && isOpen) {
-      setName(subCategory.name);
-      setParentCategoryId(subCategory.parentCategoryId);
+      reset({
+        name: subCategory.name,
+        parentCategoryId: subCategory.parentCategoryId,
+      });
+    } else if (!isOpen) {
+        // Reset on close to ensure clean state for next open, though defaultValues in useForm also helps
+        reset({ name: '', parentCategoryId: mainCategories[0]?.id || '' });
     }
-    if (!subCategory && isOpen && mainCategories.length > 0) {
-      // Default to first main category if creating a new subcategory from here (though not the primary path)
-      setParentCategoryId(mainCategories[0].id);
-    }
-  }, [subCategory, isOpen, mainCategories]);
+  }, [subCategory, isOpen, reset, mainCategories]);
 
-  if (!isOpen || !subCategory) { // This modal is specifically for editing existing subcategories
+  if (!isOpen || !subCategory) {
     return null;
   }
 
-  const handleSaveClick = () => {
-    if (!name || !parentCategoryId) {
-      alert('Le nom et la catégorie parente sont obligatoires.');
-      return;
-    }
-    onSave({ name, parentCategoryId });
+  const onSubmit = (data: EditSubCategoryFormData) => {
+    onSave(data);
   };
 
   return (
@@ -50,33 +47,38 @@ export function EditSubCategoryModal({ isOpen, onClose, onSave, subCategory, mai
           <button onClick={onClose} className="text-2xl hover:text-red-500">×</button>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSaveClick(); }}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <div>
               <label htmlFor="subCatNameEdit" className="block text-sm font-medium mb-1">Nom de la Sous-Catégorie :</label>
               <input
                 type="text"
                 id="subCatNameEdit"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500"
+                {...register('name', { required: "Le nom est requis" })}
+                className={`w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border focus:outline-none focus:ring-2 ${errors.name ? 'border-red-500 ring-red-500' : 'border-transparent focus:ring-sky-500'}`}
                 placeholder="Loyer"
-                required
               />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
             </div>
             <div>
               <label htmlFor="parentCategoryEdit" className="block text-sm font-medium mb-1">Catégorie Principale Parente :</label>
               <select
                 id="parentCategoryEdit"
-                value={parentCategoryId}
-                onChange={(e) => setParentCategoryId(e.target.value)}
-                className="w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500"
-                required
+                {...register('parentCategoryId', { required: "La catégorie parente est requise" })}
+                className={`w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border focus:outline-none focus:ring-2 ${errors.parentCategoryId ? 'border-red-500 ring-red-500' : 'border-transparent focus:ring-sky-500'}`}
+                disabled={mainCategories.length === 0}
               >
-                {mainCategories.map(cat => (
-                  <option key={cat.id} value={cat.id}>{cat.name}</option>
-                ))}
+                {mainCategories.length > 0 ? (
+                    mainCategories.map(cat => (
+                      <option key={cat.id} value={cat.id}>{cat.name}</option>
+                    ))
+                  ) : (
+                    <option value="" disabled>Créez d'abord une catégorie principale</option>
+                  )
+                }
               </select>
+              {errors.parentCategoryId && <p className="text-red-500 text-xs mt-1">{errors.parentCategoryId.message}</p>}
+              {mainCategories.length === 0 && <p className="text-yellow-500 text-xs mt-1">Veuillez d'abord créer une catégorie principale.</p>}
             </div>
           </div>
 
