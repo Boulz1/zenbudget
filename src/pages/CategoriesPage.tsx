@@ -90,12 +90,6 @@ export function CategoriesPage() {
     }
   };
 
-  const handleDeleteSubCategory = (id: string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette sous-catégorie ? Les transactions liées seront dé-catégorisées de cette sous-catégorie.")) {
-      onDeleteSubCategory(id);
-    }
-  };
-
   return (
     <div>
       <header className="flex justify-between items-center mb-6">

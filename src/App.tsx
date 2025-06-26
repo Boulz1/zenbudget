@@ -126,7 +126,7 @@ function App() {
         onAddTransaction: handleAddTransaction,
         // CRUD Catégories Principales
         onUpdateMainCategory: handleUpdateMainCategory,
-        onDeleteMainCategory: handleDeleteMainCategory,
+        onDeleteMainCategory: handleUpdateMainCategory,
         // CRUD Sous-Catégories
         onUpdateSubCategory: handleUpdateSubCategory,
         onDeleteSubCategory: handleDeleteSubCategory,
