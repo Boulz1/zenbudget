@@ -1,11 +1,12 @@
 // src/App.tsx
 import { useLocalStorage } from './hooks/useLocalStorage';
-import type { MainCategory, SubCategory, Transaction, BudgetRule, TransactionFormData, RecurringTransactionRule } from './types'; // Added RecurringTransactionRule
+import type { MainCategory, SubCategory, Transaction, BudgetRule, TransactionFormData, RecurringTransactionRule } from './types';
 import type { CategoryFormData } from './components/AddCategoryModal';
 import { v4 as uuidv4 } from 'uuid';
 import { Outlet } from 'react-router-dom';
 import { Layout } from './components/Layout';
-import { toast } from 'sonner'; // Importer toast
+import { toast } from 'sonner';
+import { calculateFirstDueDate, calculateNextDueDate } from './utils/dateLogic'; // Importer les fonctions de date
 
 // --- DONNÉES INITIALES ---
 // Ces données sont utilisées uniquement si le localStorage est vide au premier lancement.
@@ -143,19 +144,9 @@ function App() {
   };
 
   // --- CRUD pour RecurringTransactionRule ---
-  const calculateNextDueDate = (
-    startDate: string,
-    frequency: RecurringTransactionRule['frequency'],
-    interval: number,
-    dayOfWeek?: number, // Pour 'weekly'
-    dayOfMonth?: number // Pour 'monthly' ou 'yearly'
-  ): string => {
-    // Logique de calcul de la prochaine date d'échéance
-    // Sera implémentée plus en détail lors de la création de la logique de génération de transactions.
-    // Pour l'instant, un placeholder simple :
-    // console.log('Calculating next due date with:', startDate, frequency, interval, dayOfWeek, dayOfMonth);
-    return startDate; // Placeholder très basique
-  };
+  // Utiliser la logique de dateLogic.ts
+  // calculateNextDueDate a été déplacé dans dateLogic.ts
+  // calculateFirstDueDate est nouveau et sera utilisé dans handleAddRecurringRule.
 
   const handleAddRecurringRule = (
     ruleData: Omit<RecurringTransactionRule, 'id' | 'lastGeneratedDate' | 'nextDueDate' | 'isActive'>
@@ -163,11 +154,10 @@ function App() {
     const newRule: RecurringTransactionRule = {
       id: `rec-${uuidv4()}`,
       ...ruleData,
-      isActive: true, // Actif par défaut
-      nextDueDate: calculateNextDueDate(
+      isActive: true,
+      nextDueDate: calculateFirstDueDate( // Utiliser calculateFirstDueDate pour la première échéance
         ruleData.startDate,
         ruleData.frequency,
-        ruleData.interval,
         ruleData.dayOfWeek,
         ruleData.dayOfMonth
       ),
@@ -187,17 +177,21 @@ function App() {
         if (rule.id === id) {
           const updatedRule = { ...rule, ...ruleData };
           // Recalculer nextDueDate si les champs pertinents pour la date changent
+          // Pour une mise à jour, on recalcule la *première* échéance si startDate change,
+          // ou la *prochaine* échéance si d'autres paramètres de fréquence changent et que lastGeneratedDate existe.
+          // Pour l'instant, on recalcule simplement la première échéance à partir de la nouvelle startDate
+          // si startDate, frequency, ou interval (etc.) changent.
+          // Une logique plus fine serait nécessaire si on veut préserver l'historique de génération.
           if (ruleData.startDate || ruleData.frequency || ruleData.interval || ruleData.dayOfWeek || ruleData.dayOfMonth) {
-            updatedRule.nextDueDate = calculateNextDueDate(
+            updatedRule.nextDueDate = calculateFirstDueDate( // Recalculer comme si c'était une nouvelle règle
               updatedRule.startDate,
               updatedRule.frequency,
-              updatedRule.interval,
+              // updatedRule.interval, // calculateFirstDueDate n'utilise pas interval directement
               updatedRule.dayOfWeek,
               updatedRule.dayOfMonth
             );
-            // Si la date de début ou la fréquence change, on pourrait vouloir réinitialiser lastGeneratedDate
-            // pour forcer la régénération des transactions. À affiner.
-            // updatedRule.lastGeneratedDate = undefined;
+            // Lors d'un changement impactant la séquence, il est sage de réinitialiser lastGeneratedDate
+            updatedRule.lastGeneratedDate = undefined;
           }
           ruleNameForToast = updatedRule.name;
           return updatedRule;
