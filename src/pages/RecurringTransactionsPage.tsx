@@ -1,12 +1,12 @@
 // src/pages/RecurringTransactionsPage.tsx
-import React, { useState } from 'react'; // useState ajouté
+import React, { useState } from 'react';
 import { useAppContext } from '../components/Layout';
-// import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { AddRecurringRuleModal, type RecurringRuleFormData } from '../components/AddRecurringRuleModal';
-import { EditRecurringRuleModal } from '../components/EditRecurringRuleModal'; // Importer la modale d'édition
-import type { RecurringTransactionRule } from '../types'; // Importer le type
+import { EditRecurringRuleModal } from '../components/EditRecurringRuleModal';
+import { ConfirmationModal } from '../components/ConfirmationModal'; // Import
+import type { RecurringTransactionRule } from '../types';
 
 export function RecurringTransactionsPage() {
   const {
@@ -19,6 +19,12 @@ export function RecurringTransactionsPage() {
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [currentRuleToEdit, setCurrentRuleToEdit] = useState<RecurringTransactionRule | null>(null);
+
+  // États pour la modale de confirmation
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState('');
+  const [confirmMessage, setConfirmMessage] = useState<React.ReactNode>('');
 
   const handleSaveNewRule = (data: RecurringRuleFormData) => {
     onAddRecurringRule(data);
@@ -43,11 +49,38 @@ export function RecurringTransactionsPage() {
     }
   };
 
-  const handleDelete = (ruleId: string) => {
-    // window.confirm est utilisé ici, mais pourrait être remplacé par une modale de confirmation plus tard
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette règle récurrente ?")) {
-      onDeleteRecurringRule(ruleId);
+  const openConfirmationModal = (title: string, message: React.ReactNode, action: () => void) => {
+    setConfirmTitle(title);
+    setConfirmMessage(message);
+    setConfirmAction(() => action);
+    setIsConfirmModalOpen(true);
+  };
+
+  const handleActualConfirm = () => {
+    if (confirmAction) {
+      confirmAction();
     }
+    setIsConfirmModalOpen(false);
+    setConfirmAction(null);
+  };
+
+  const handleCancelConfirm = () => {
+    setIsConfirmModalOpen(false);
+    setConfirmAction(null);
+  };
+
+  const handleDeleteRequest = (ruleId: string) => {
+    const ruleToDelete = recurringTransactionRules.find(r => r.id === ruleId);
+    if (!ruleToDelete) return;
+
+    const message = (
+      <p>Êtes-vous sûr de vouloir supprimer la règle récurrente <strong>"{ruleToDelete.name}"</strong> ?</p>
+    );
+    openConfirmationModal(
+      "Confirmer la suppression",
+      message,
+      () => onDeleteRecurringRule(ruleId)
+    );
   };
 
   const getFrequencyText = (frequency: string, interval: number) => {
@@ -146,7 +179,7 @@ export function RecurringTransactionsPage() {
                       {rule.isActive ? 'Désactiver' : 'Activer'}
                     </button>
                     <button onClick={() => handleOpenEditModal(rule)} className="text-yellow-600 dark:text-yellow-400 hover:underline">Modifier</button>
-                    <button onClick={() => handleDelete(rule.id)} className="text-red-600 dark:text-red-400 hover:underline">Supprimer</button>
+                    <button onClick={() => handleDeleteRequest(rule.id)} className="text-red-600 dark:text-red-400 hover:underline">Supprimer</button> {/* Modifié ici */}
                   </td>
                 </tr>
               ))}
@@ -154,6 +187,15 @@ export function RecurringTransactionsPage() {
           </table>
         </div>
       )}
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={handleCancelConfirm}
+        onConfirm={handleActualConfirm}
+        title={confirmTitle}
+        message={confirmMessage}
+        confirmButtonText="Supprimer"
+        confirmButtonVariant="danger"
+      />
     </div>
   );
 }
