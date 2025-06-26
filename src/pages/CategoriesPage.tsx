@@ -17,16 +17,29 @@ export function CategoriesPage() {
     onDeleteSubCategory
   } = useAppContext();
   
-  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  // State for AddCategoryModal: null when closed, or object with config when open
+  const [addModalConfig, setAddModalConfig] =
+    useState<{ isOpen: boolean; type?: 'main' | 'sub'; parentId?: string } | null>(null);
+
   const [isEditMainCatModalOpen, setIsEditMainCatModalOpen] = useState(false);
   const [currentEditingMainCat, setCurrentEditingMainCat] = useState<MainCategory | null>(null);
 
   const [isEditSubCatModalOpen, setIsEditSubCatModalOpen] = useState(false);
   const [currentEditingSubCat, setCurrentEditingSubCat] = useState<SubCategory | null>(null);
 
+  // Opens the modal for adding a general category (defaults to main)
+  const handleOpenGenericAddModal = () => {
+    setAddModalConfig({ isOpen: true, type: 'main' });
+  };
 
-  const handleOpenAddModal = () => setIsAddModalOpen(true);
-  const handleCloseAddModal = () => setIsAddModalOpen(false);
+  // Opens the modal specifically to add a sub-category to a given main category
+  const handleOpenAddSubModal = (mainCategoryId: string) => {
+    setAddModalConfig({ isOpen: true, type: 'sub', parentId: mainCategoryId });
+  };
+
+  const handleCloseAddModal = () => {
+    setAddModalConfig(null);
+  };
 
   const handleOpenEditMainCatModal = (category: MainCategory) => {
     setCurrentEditingMainCat(category);
@@ -77,12 +90,10 @@ export function CategoriesPage() {
     }
   };
 
-  // TODO: Implement function to add subcategory directly from main category card
-  const handleAddSubCategoryDirectly = (mainCategoryId: string) => {
-    // This could open the AddCategoryModal with 'sub' type preselected and parentId set
-    console.log("TODO: Open modal to add sub-category for main category ID:", mainCategoryId);
-    // For now, let's open the generic add modal
-    handleOpenAddModal();
+  const handleDeleteSubCategory = (id: string) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette sous-catégorie ? Les transactions liées seront dé-catégorisées de cette sous-catégorie.")) {
+      onDeleteSubCategory(id);
+    }
   };
 
   return (
@@ -90,7 +101,7 @@ export function CategoriesPage() {
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Gestion des Catégories</h1>
         <button 
-          onClick={handleOpenAddModal}
+          onClick={handleOpenGenericAddModal} // Changed from handleOpenAddModal
           className="bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors"
         >
           Ajouter une Catégorie (+)
@@ -156,7 +167,7 @@ export function CategoriesPage() {
                   <p className="text-sm text-gray-500 dark:text-gray-400">Aucune sous-catégorie.</p>
                 )}
                  <button
-                    onClick={() => handleAddSubCategoryDirectly(mainCat.id)}
+                    onClick={() => handleOpenAddSubModal(mainCat.id)} // Changed to use specific handler
                     className="mt-4 text-sm text-sky-500 hover:text-sky-400 font-semibold"
                   >
                    (+) Ajouter Sous-Catégorie
@@ -168,12 +179,16 @@ export function CategoriesPage() {
       </div>
 
       {/* Add Category Modal (Main or Sub) */}
-      <AddCategoryModal
-        isOpen={isAddModalOpen}
-        onClose={handleCloseAddModal}
-        onSave={handleSaveAddCategory}
-        mainCategories={mainCategories}
-      />
+      {addModalConfig?.isOpen && (
+        <AddCategoryModal
+          isOpen={addModalConfig.isOpen}
+          onClose={handleCloseAddModal}
+          onSave={handleSaveAddCategory}
+          mainCategories={mainCategories}
+          initialType={addModalConfig.type}
+          initialParentCategoryId={addModalConfig.parentId}
+        />
+      )}
       {/* Edit Main Category Modal */}
       {currentEditingMainCat && (
         <EditMainCategoryModal
