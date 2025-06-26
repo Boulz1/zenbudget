@@ -1,6 +1,6 @@
 // src/App.tsx
 import { useLocalStorage } from './hooks/useLocalStorage';
-import type { MainCategory, SubCategory, Transaction, BudgetRule, TransactionFormData } from './types';
+import type { MainCategory, SubCategory, Transaction, BudgetRule, TransactionFormData, RecurringTransactionRule } from './types'; // Added RecurringTransactionRule
 import type { CategoryFormData } from './components/AddCategoryModal';
 import { v4 as uuidv4 } from 'uuid';
 import { Outlet } from 'react-router-dom';
@@ -38,6 +38,7 @@ function App() {
   const [subCategories, setSubCategories] = useLocalStorage<SubCategory[]>('subCategories', initialSubCategories);
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
   const [budgetRule, setBudgetRule] = useLocalStorage<BudgetRule>('budgetRule', initialBudgetRule);
+  const [recurringTransactionRules, setRecurringTransactionRules] = useLocalStorage<RecurringTransactionRule[]>('recurringTransactionRules', []);
 
   // --- FONCTIONS DE MISE À JOUR DE L'ÉTAT ---
   
@@ -141,6 +142,80 @@ function App() {
     }
   };
 
+  // --- CRUD pour RecurringTransactionRule ---
+  const calculateNextDueDate = (
+    startDate: string,
+    frequency: RecurringTransactionRule['frequency'],
+    interval: number,
+    dayOfWeek?: number, // Pour 'weekly'
+    dayOfMonth?: number // Pour 'monthly' ou 'yearly'
+  ): string => {
+    // Logique de calcul de la prochaine date d'échéance
+    // Sera implémentée plus en détail lors de la création de la logique de génération de transactions.
+    // Pour l'instant, un placeholder simple :
+    // console.log('Calculating next due date with:', startDate, frequency, interval, dayOfWeek, dayOfMonth);
+    return startDate; // Placeholder très basique
+  };
+
+  const handleAddRecurringRule = (
+    ruleData: Omit<RecurringTransactionRule, 'id' | 'lastGeneratedDate' | 'nextDueDate' | 'isActive'>
+  ) => {
+    const newRule: RecurringTransactionRule = {
+      id: `rec-${uuidv4()}`,
+      ...ruleData,
+      isActive: true, // Actif par défaut
+      nextDueDate: calculateNextDueDate(
+        ruleData.startDate,
+        ruleData.frequency,
+        ruleData.interval,
+        ruleData.dayOfWeek,
+        ruleData.dayOfMonth
+      ),
+      // lastGeneratedDate reste undefined initialement
+    };
+    setRecurringTransactionRules(prev => [...prev, newRule]);
+    toast.success(`Règle récurrente "${newRule.name}" ajoutée.`);
+  };
+
+  const handleUpdateRecurringRule = (
+    id: string,
+    ruleData: Partial<Omit<RecurringTransactionRule, 'id'>> // Permet des mises à jour partielles
+  ) => {
+    let ruleNameForToast = '';
+    setRecurringTransactionRules(prev =>
+      prev.map(rule => {
+        if (rule.id === id) {
+          const updatedRule = { ...rule, ...ruleData };
+          // Recalculer nextDueDate si les champs pertinents pour la date changent
+          if (ruleData.startDate || ruleData.frequency || ruleData.interval || ruleData.dayOfWeek || ruleData.dayOfMonth) {
+            updatedRule.nextDueDate = calculateNextDueDate(
+              updatedRule.startDate,
+              updatedRule.frequency,
+              updatedRule.interval,
+              updatedRule.dayOfWeek,
+              updatedRule.dayOfMonth
+            );
+            // Si la date de début ou la fréquence change, on pourrait vouloir réinitialiser lastGeneratedDate
+            // pour forcer la régénération des transactions. À affiner.
+            // updatedRule.lastGeneratedDate = undefined;
+          }
+          ruleNameForToast = updatedRule.name;
+          return updatedRule;
+        }
+        return rule;
+      })
+    );
+    toast.success(`Règle récurrente "${ruleNameForToast || ruleData.name}" mise à jour.`);
+  };
+
+  const handleDeleteRecurringRule = (id: string) => {
+    const ruleToDelete = recurringTransactionRules.find(r => r.id === id);
+    setRecurringTransactionRules(prev => prev.filter(rule => rule.id !== id));
+    if (ruleToDelete) {
+      toast.success(`Règle récurrente "${ruleToDelete.name}" supprimée.`);
+    }
+  };
+
   // --- RENDU DU COMPOSANT ---
   // Le composant App sert de conteneur pour le Layout et fournit les données via l'Outlet.
   return (
@@ -150,6 +225,7 @@ function App() {
         mainCategories,
         subCategories,
         transactions,
+        recurringTransactionRules, // Ajouté ici
         onAddCategory: handleAddCategory,
         budgetRule,
         onSaveBudgetRule: handleSaveBudgetRule,
@@ -163,6 +239,10 @@ function App() {
         // CRUD Transactions
         onUpdateTransaction: handleUpdateTransaction,
         onDeleteTransaction: handleDeleteTransaction,
+        // CRUD Recurring Transactions
+        onAddRecurringRule: handleAddRecurringRule,
+        onUpdateRecurringRule: handleUpdateRecurringRule,
+        onDeleteRecurringRule: handleDeleteRecurringRule,
       }} />
     </Layout>
   );

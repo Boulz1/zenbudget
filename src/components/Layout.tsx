@@ -2,7 +2,7 @@
 
 import { NavLink, Outlet, useOutletContext } from "react-router-dom";
 import { Toaster } from 'sonner'; // Import Toaster
-import type { BudgetRule, MainCategory, SubCategory, Transaction, TransactionFormData } from "../types";
+import type { BudgetRule, MainCategory, SubCategory, Transaction, TransactionFormData, RecurringTransactionRule } from "../types"; // Added RecurringTransactionRule
 import type { CategoryFormData } from "./AddCategoryModal";
 
 // Type du contexte que l'Outlet fournit aux pages enfants.
@@ -24,6 +24,11 @@ export type AppContextType = {
   // CRUD Transactions
   onUpdateTransaction: (id: string, data: TransactionFormData) => void;
   onDeleteTransaction: (id: string) => void;
+  // CRUD RecurringTransactionRule
+  recurringTransactionRules: RecurringTransactionRule[];
+  onAddRecurringRule: (ruleData: Omit<RecurringTransactionRule, 'id' | 'lastGeneratedDate' | 'nextDueDate' | 'isActive'>) => void;
+  onUpdateRecurringRule: (id: string, ruleData: Partial<Omit<RecurringTransactionRule, 'id'>>) => void;
+  onDeleteRecurringRule: (id: string) => void;
 };
 
 export function Layout({ children }: { children: React.ReactNode }) {
