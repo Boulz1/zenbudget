@@ -1,15 +1,22 @@
 // src/pages/RecurringTransactionsPage.tsx
-import React from 'react';
+import React, { useState } from 'react'; // useState ajouté
 import { useAppContext } from '../components/Layout';
-import { Link } from 'react-router-dom'; // Pour le bouton "Ajouter"
+// import { Link } from 'react-router-dom'; // Plus besoin pour le bouton "Ajouter" si on utilise une modale
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
+import { AddRecurringRuleModal, type RecurringRuleFormData } from '../components/AddRecurringRuleModal'; // Importer la modale
 
 export function RecurringTransactionsPage() {
-  const { recurringTransactionRules, onDeleteRecurringRule, onUpdateRecurringRule } = useAppContext();
+  const { recurringTransactionRules, onDeleteRecurringRule, onUpdateRecurringRule, onAddRecurringRule } = useAppContext();
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+
+  const handleSaveNewRule = (data: RecurringRuleFormData) => {
+    onAddRecurringRule(data);
+    // La modale se ferme déjà d'elle-même après onSave, donc pas besoin de setIsAddModalOpen(false) ici
+    // si onClose est bien appelé dans la modale après onSave.
+  };
 
   const handleToggleActive = (ruleId: string, currentIsActive: boolean) => {
-    // Appeler onUpdateRecurringRule pour inverser la valeur de isActive
     // Le nom et autres détails ne changent pas, donc on peut les extraire de la règle existante si besoin pour le toast
     const ruleToUpdate = recurringTransactionRules.find(r => r.id === ruleId);
     if (ruleToUpdate) {
@@ -49,12 +56,18 @@ export function RecurringTransactionsPage() {
       <header className="flex justify-between items-center">
         <h1 className="text-3xl font-bold">Transactions Récurrentes</h1>
         <button
-            onClick={() => console.log("TODO: Open AddRecurringRuleModal")}
+            onClick={() => setIsAddModalOpen(true)}
             className="bg-sky-500 text-white font-bold py-2 px-4 rounded-lg hover:bg-sky-600 transition-colors"
         >
           (+) Ajouter une Règle
         </button>
       </header>
+
+      <AddRecurringRuleModal
+        isOpen={isAddModalOpen}
+        onClose={() => setIsAddModalOpen(false)}
+        onSave={handleSaveNewRule}
+      />
 
       {recurringTransactionRules.length === 0 ? (
         <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-lg shadow-md">
