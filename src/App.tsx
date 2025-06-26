@@ -73,6 +73,44 @@ function App() {
     setTransactions(prev => [newTransaction, ...prev]);
   };
 
+  // --- CRUD pour Catégories Principales ---
+  const handleUpdateMainCategory = (id: string, data: Omit<MainCategory, 'id'>) => {
+    setMainCategories(prev =>
+      prev.map(cat => cat.id === id ? { ...cat, ...data } : cat)
+    );
+  };
+
+  // --- CRUD pour Sous-Catégories ---
+  const handleUpdateSubCategory = (id: string, data: Omit<SubCategory, 'id'>) => {
+    setSubCategories(prev =>
+      prev.map(sub => sub.id === id ? { ...sub, ...data } : sub)
+    );
+  };
+
+  const handleDeleteSubCategory = (id: string) => {
+    setSubCategories(prev => prev.filter(sub => sub.id !== id));
+    // Dé-catégoriser (seulement la sous-catégorie) les transactions liées
+    setTransactions(prev =>
+      prev.map(tx => {
+        if (tx.subCategoryId === id) {
+          return { ...tx, subCategoryId: undefined };
+        }
+        return tx;
+      })
+    );
+  };
+
+  // --- CRUD pour Transactions ---
+  const handleUpdateTransaction = (id: string, data: TransactionFormData) => {
+    setTransactions(prev =>
+      prev.map(tx => tx.id === id ? { ...tx, ...data, id } : tx) // Assurer que l'id est conservé
+    );
+  };
+
+  const handleDeleteTransaction = (id: string) => {
+    setTransactions(prev => prev.filter(tx => tx.id !== id));
+  };
+
   // --- RENDU DU COMPOSANT ---
   // Le composant App sert de conteneur pour le Layout et fournit les données via l'Outlet.
   return (
@@ -86,6 +124,15 @@ function App() {
         budgetRule,
         onSaveBudgetRule: handleSaveBudgetRule,
         onAddTransaction: handleAddTransaction,
+        // CRUD Catégories Principales
+        onUpdateMainCategory: handleUpdateMainCategory,
+        onDeleteMainCategory: handleDeleteMainCategory,
+        // CRUD Sous-Catégories
+        onUpdateSubCategory: handleUpdateSubCategory,
+        onDeleteSubCategory: handleDeleteSubCategory,
+        // CRUD Transactions
+        onUpdateTransaction: handleUpdateTransaction,
+        onDeleteTransaction: handleDeleteTransaction,
       }} />
     </Layout>
   );

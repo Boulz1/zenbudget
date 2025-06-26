@@ -8,8 +8,8 @@ import { CategoriesPage } from './pages/CategoriesPage.tsx';
 import { SettingsPage } from './pages/SettingsPage.tsx';
 import { NewTransactionPage } from './pages/NewTransactionPage.tsx';
 import { TransactionsListPage } from './pages/TransactionsListPage.tsx';
-// On importe notre nouvelle page de tableau de bord
 import { DashboardPage } from './pages/DashboardPage.tsx';
+import { EditTransactionPage } from './pages/EditTransactionPage.tsx'; // Importer la nouvelle page
 
 const router = createBrowserRouter([
   {
@@ -17,12 +17,16 @@ const router = createBrowserRouter([
     element: <App />,
     children: [
       {
-        index: true, // "index: true" signifie que c'est la route par défaut pour le parent ('/')
+        index: true,
         element: <DashboardPage />,
       },
       {
         path: 'transactions/new',
         element: <NewTransactionPage />,
+      },
+      {
+        path: 'transactions/:transactionId/edit', // Nouvelle route pour éditer
+        element: <EditTransactionPage />,
       },
       {
         path: 'transactions',

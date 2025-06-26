@@ -14,6 +14,15 @@ export type AppContextType = {
   budgetRule: BudgetRule;
   onSaveBudgetRule: (newRule: BudgetRule) => void;
   onAddTransaction: (data: TransactionFormData) => void;
+  // CRUD Catégories Principales
+  onUpdateMainCategory: (id: string, data: Omit<MainCategory, 'id'>) => void;
+  onDeleteMainCategory: (id: string) => void;
+  // CRUD Sous-Catégories
+  onUpdateSubCategory: (id: string, data: Omit<SubCategory, 'id'>) => void;
+  onDeleteSubCategory: (id: string) => void;
+  // CRUD Transactions
+  onUpdateTransaction: (id: string, data: TransactionFormData) => void;
+  onDeleteTransaction: (id: string) => void;
 };
 
 export function Layout({ children }: { children: React.ReactNode }) {
