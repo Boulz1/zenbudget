@@ -1,8 +1,7 @@
 // src/components/AddCategoryModal.tsx
-
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useForm, Controller } from 'react-hook-form';
 import type { MainCategory, SubCategory, BudgetType } from '../types';
-import { v4 as uuidv4 } from 'uuid';
 
 export type CategoryFormData = 
   | { type: 'main'; data: Omit<MainCategory, 'id'> }
@@ -17,6 +16,14 @@ interface AddCategoryModalProps {
   initialParentCategoryId?: string;
 }
 
+type FormValues = {
+  categoryType: 'main' | 'sub';
+  mainCatName?: string;
+  budgetType?: BudgetType;
+  subCatName?: string;
+  parentCatId?: string;
+};
+
 export function AddCategoryModal({
   isOpen,
   onClose,
@@ -25,78 +32,66 @@ export function AddCategoryModal({
   initialType = 'main',
   initialParentCategoryId
 }: AddCategoryModalProps) {
-  const [categoryType, setCategoryType] = useState<'main' | 'sub'>(initialType);
-  const [mainCatName, setMainCatName] = useState('');
-  const [budgetType, setBudgetType] = useState<BudgetType>('Besoins');
-  const [subCatName, setSubCatName] = useState('');
-  // Set initial parentCatId based on prop, or default to first main category if type is 'sub'
-  const [parentCatId, setParentCatId] = useState(
-    initialType === 'sub' && initialParentCategoryId
-    ? initialParentCategoryId
-    : mainCategories[0]?.id || ''
-  );
+
+  const { register, handleSubmit, control, watch, setValue, reset, formState: { errors } } = useForm<FormValues>({
+    defaultValues: {
+      categoryType: initialType,
+      mainCatName: '',
+      budgetType: 'Besoins',
+      subCatName: '',
+      parentCatId: initialType === 'sub' && initialParentCategoryId
+                   ? initialParentCategoryId
+                   : mainCategories[0]?.id || '',
+    }
+  });
+
+  const watchedCategoryType = watch('categoryType');
 
   useEffect(() => {
     if (isOpen) {
-      // Reset fields when modal opens, but respect initial props
-      setCategoryType(initialType);
-      setMainCatName('');
-      setBudgetType('Besoins'); // Default budget type
-      setSubCatName('');
-
-      if (initialType === 'sub') {
-        if (initialParentCategoryId) {
-          setParentCatId(initialParentCategoryId);
-        } else if (mainCategories.length > 0) {
-          setParentCatId(mainCategories[0].id); // Default if no specific parent ID given for sub
-        } else {
-          setParentCatId(''); // No parent available
-        }
-      } else { // initialType === 'main'
-        // Ensure parentCatId is sensible if user switches to 'sub' later
-        setParentCatId(mainCategories[0]?.id || '');
-      }
+      reset({
+        categoryType: initialType,
+        mainCatName: '',
+        budgetType: 'Besoins',
+        subCatName: '',
+        parentCatId: initialType === 'sub'
+                       ? (initialParentCategoryId || mainCategories[0]?.id || '')
+                       : (mainCategories[0]?.id || ''),
+      });
     }
-  }, [isOpen, initialType, initialParentCategoryId, mainCategories]);
+  }, [isOpen, initialType, initialParentCategoryId, mainCategories, reset]);
 
-  // Update parentCatId if categoryType changes to 'sub' and parentCatId is not set or not valid
+  // Ensure parentCatId is valid if type is 'sub'
   useEffect(() => {
-    if (categoryType === 'sub') {
-      const isValidParent = mainCategories.some(mc => mc.id === parentCatId);
-      if (!parentCatId || !isValidParent) {
-        setParentCatId(mainCategories[0]?.id || '');
+    if (watchedCategoryType === 'sub') {
+      const currentParentId = watch('parentCatId');
+      const isValidParent = mainCategories.some(mc => mc.id === currentParentId);
+      if (!currentParentId || !isValidParent) {
+        setValue('parentCatId', mainCategories[0]?.id || '', { shouldValidate: true });
       }
     }
-  }, [categoryType, mainCategories, parentCatId]);
+  }, [watchedCategoryType, mainCategories, setValue, watch]);
 
 
   if (!isOpen) {
     return null;
   }
 
-  const handleSaveClick = () => {
-    if (categoryType === 'main') {
-      if (!mainCatName) {
-        alert('Le nom de la catégorie principale est obligatoire.');
-        return;
-      }
+  const onSubmit = (data: FormValues) => {
+    if (data.categoryType === 'main') {
       onSave({
         type: 'main',
         data: {
-          name: mainCatName,
-          budgetType: budgetType,
+          name: data.mainCatName!, // Already validated by required
+          budgetType: data.budgetType!,
         }
       });
-    } else {
-      if (!subCatName || !parentCatId) {
-        alert('Le nom et la catégorie parente sont obligatoires.');
-        return;
-      }
+    } else { // type === 'sub'
       onSave({
         type: 'sub',
         data: {
-          name: subCatName,
-          parentCategoryId: parentCatId,
+          name: data.subCatName!, // Already validated by required
+          parentCategoryId: data.parentCatId!,
         }
       });
     }
@@ -110,56 +105,82 @@ export function AddCategoryModal({
           <button onClick={onClose} className="text-2xl hover:text-red-500">×</button>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSaveClick(); }}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="mb-4">
             <label className="block text-sm font-medium mb-2">Type de Catégorie :</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="categoryType" value="main" checked={categoryType === 'main'} onChange={() => setCategoryType('main')} className="form-radio text-sky-500 focus:ring-sky-500" />
-                Cat. Principale
-              </label>
-              <label className="flex items-center gap-2 cursor-pointer">
-                <input type="radio" name="categoryType" value="sub" checked={categoryType === 'sub'} onChange={() => setCategoryType('sub')} className="form-radio text-sky-500 focus:ring-sky-500" />
-                Sous-Catégorie
-              </label>
-            </div>
+            <Controller
+              name="categoryType"
+              control={control}
+              render={({ field }) => (
+                <div className="flex gap-4">
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" {...field} value="main" checked={field.value === 'main'} onChange={() => field.onChange('main')} className="form-radio text-sky-500 focus:ring-sky-500" />
+                    Cat. Principale
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" {...field} value="sub" checked={field.value === 'sub'} onChange={() => field.onChange('sub')} className="form-radio text-sky-500 focus:ring-sky-500" />
+                    Sous-Catégorie
+                  </label>
+                </div>
+              )}
+            />
           </div>
 
-          {categoryType === 'main' && (
+          {watchedCategoryType === 'main' && (
             <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-4">
               <div>
                 <label htmlFor="mainCatName" className="block text-sm font-medium mb-1">Nom de la Catégorie Principale :</label>
-                <input type="text" id="mainCatName" value={mainCatName} onChange={(e) => setMainCatName(e.target.value)} className="w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Logement" required />
+                <input type="text" id="mainCatName"
+                  {...register('mainCatName', { required: watchedCategoryType === 'main' ? "Le nom est requis" : false })}
+                  className={`w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border focus:outline-none focus:ring-2 ${errors.mainCatName ? 'border-red-500 ring-red-500' : 'border-transparent focus:ring-sky-500'}`}
+                  placeholder="Logement"
+                />
+                {errors.mainCatName && <p className="text-red-500 text-xs mt-1">{errors.mainCatName.message}</p>}
               </div>
               <div>
                 <label htmlFor="budgetType" className="block text-sm font-medium mb-1">Associer au Budget :</label>
-                <select id="budgetType" value={budgetType} onChange={(e) => setBudgetType(e.target.value as BudgetType)} className="w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500">
+                <select id="budgetType"
+                  {...register('budgetType', { required: watchedCategoryType === 'main' ? "Le type de budget est requis" : false })}
+                  className={`w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border focus:outline-none focus:ring-2 ${errors.budgetType ? 'border-red-500 ring-red-500' : 'border-transparent focus:ring-sky-500'}`}
+                >
                   <option value="Besoins">Besoins</option>
                   <option value="Envies">Envies</option>
                   <option value="Épargne">Épargne</option>
                   <option value="Revenu">Revenu</option>
                 </select>
+                 {errors.budgetType && <p className="text-red-500 text-xs mt-1">{errors.budgetType.message}</p>}
               </div>
             </div>
           )}
 
-          {categoryType === 'sub' && (
+          {watchedCategoryType === 'sub' && (
             <div className="space-y-4 border-t border-slate-200 dark:border-slate-700 pt-4">
               <div>
                 <label htmlFor="subCatName" className="block text-sm font-medium mb-1">Nom de la Sous-Catégorie :</label>
-                <input type="text" id="subCatName" value={subCatName} onChange={(e) => setSubCatName(e.target.value)} className="w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500" placeholder="Loyer" required />
+                <input type="text" id="subCatName"
+                  {...register('subCatName', { required: watchedCategoryType === 'sub' ? "Le nom est requis" : false })}
+                  className={`w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border focus:outline-none focus:ring-2 ${errors.subCatName ? 'border-red-500 ring-red-500' : 'border-transparent focus:ring-sky-500'}`}
+                  placeholder="Loyer"
+                />
+                {errors.subCatName && <p className="text-red-500 text-xs mt-1">{errors.subCatName.message}</p>}
               </div>
               <div>
-                <label htmlFor="parentCategory" className="block text-sm font-medium mb-1">Catégorie Principale Parente :</label>
-                <select id="parentCategory" value={parentCatId} onChange={(e) => setParentCatId(e.target.value)} className="w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500" required>
+                <label htmlFor="parentCatId" className="block text-sm font-medium mb-1">Catégorie Principale Parente :</label>
+                <select id="parentCatId"
+                  {...register('parentCatId', { required: watchedCategoryType === 'sub' ? "La catégorie parente est requise" : false })}
+                  className={`w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border focus:outline-none focus:ring-2 ${errors.parentCatId ? 'border-red-500 ring-red-500' : 'border-transparent focus:ring-sky-500'}`}
+                  disabled={mainCategories.length === 0}
+                >
                   {mainCategories.length > 0 ? (
                     mainCategories.map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.name}</option>
                     ))
                   ) : (
-                    <option disabled>Créez d'abord une catégorie principale</option>
+                    <option value="" disabled>Créez d'abord une catégorie principale</option>
                   )}
                 </select>
+                {errors.parentCatId && <p className="text-red-500 text-xs mt-1">{errors.parentCatId.message}</p>}
+                 {mainCategories.length === 0 && watchedCategoryType === 'sub' && <p className="text-yellow-500 text-xs mt-1">Veuillez d'abord créer une catégorie principale.</p>}
               </div>
             </div>
           )}

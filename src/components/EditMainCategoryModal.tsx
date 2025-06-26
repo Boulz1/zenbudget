@@ -1,8 +1,9 @@
 // src/components/EditMainCategoryModal.tsx
-import React, { useState, useEffect } from 'react';
+import React, { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
 import type { MainCategory, BudgetType } from '../types';
 
-export interface EditMainCategoryFormData {
+export interface EditMainCategoryFormData { // Renommé pour correspondre au nom du fichier (convention)
   name: string;
   budgetType: BudgetType;
 }
@@ -11,30 +12,29 @@ interface EditMainCategoryModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSave: (data: EditMainCategoryFormData) => void;
-  category: MainCategory | null;
+  category: MainCategory | null; // La catégorie à éditer
 }
 
 export function EditMainCategoryModal({ isOpen, onClose, onSave, category }: EditMainCategoryModalProps) {
-  const [name, setName] = useState('');
-  const [budgetType, setBudgetType] = useState<BudgetType>('Besoins');
+  const { register, handleSubmit, reset, formState: { errors } } = useForm<EditMainCategoryFormData>();
 
   useEffect(() => {
     if (category && isOpen) {
-      setName(category.name);
-      setBudgetType(category.budgetType);
+      reset({
+        name: category.name,
+        budgetType: category.budgetType,
+      });
+    } else if (!isOpen) {
+        reset({ name: '', budgetType: 'Besoins' }); // Reset on close as well
     }
-  }, [category, isOpen]);
+  }, [category, isOpen, reset]);
 
-  if (!isOpen || !category) {
+  if (!isOpen || !category) { // Assurez-vous que la catégorie est fournie
     return null;
   }
 
-  const handleSaveClick = () => {
-    if (!name) {
-      alert('Le nom de la catégorie principale est obligatoire.');
-      return;
-    }
-    onSave({ name, budgetType });
+  const onSubmit = (data: EditMainCategoryFormData) => {
+    onSave(data);
   };
 
   return (
@@ -45,33 +45,32 @@ export function EditMainCategoryModal({ isOpen, onClose, onSave, category }: Edi
           <button onClick={onClose} className="text-2xl hover:text-red-500">×</button>
         </div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSaveClick(); }}>
+        <form onSubmit={handleSubmit(onSubmit)}>
           <div className="space-y-4">
             <div>
               <label htmlFor="mainCatNameEdit" className="block text-sm font-medium mb-1">Nom de la Catégorie Principale :</label>
               <input
                 type="text"
                 id="mainCatNameEdit"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500"
+                {...register('name', { required: "Le nom est requis" })}
+                className={`w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border focus:outline-none focus:ring-2 ${errors.name ? 'border-red-500 ring-red-500' : 'border-transparent focus:ring-sky-500'}`}
                 placeholder="Logement"
-                required
               />
+              {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name.message}</p>}
             </div>
             <div>
               <label htmlFor="budgetTypeEdit" className="block text-sm font-medium mb-1">Associer au Budget :</label>
               <select
                 id="budgetTypeEdit"
-                value={budgetType}
-                onChange={(e) => setBudgetType(e.target.value as BudgetType)}
-                className="w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border border-transparent focus:outline-none focus:ring-2 focus:ring-sky-500"
+                {...register('budgetType', { required: "Le type de budget est requis" })}
+                className={`w-full p-2 rounded bg-slate-200 dark:bg-slate-700 border focus:outline-none focus:ring-2 ${errors.budgetType ? 'border-red-500 ring-red-500' : 'border-transparent focus:ring-sky-500'}`}
               >
                 <option value="Besoins">Besoins</option>
                 <option value="Envies">Envies</option>
                 <option value="Épargne">Épargne</option>
                 <option value="Revenu">Revenu</option>
               </select>
+              {errors.budgetType && <p className="text-red-500 text-xs mt-1">{errors.budgetType.message}</p>}
             </div>
           </div>
 
