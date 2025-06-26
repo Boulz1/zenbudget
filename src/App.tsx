@@ -6,7 +6,9 @@ import { v4 as uuidv4 } from 'uuid';
 import { Outlet } from 'react-router-dom';
 import { Layout } from './components/Layout';
 import { toast } from 'sonner';
-import { calculateFirstDueDate, calculateNextDueDate } from './utils/dateLogic'; // Importer les fonctions de date
+import { calculateFirstDueDate, calculateNextDueDate } from './utils/dateLogic'; // Déjà importé
+import { generateTransactionsForRule } from './utils/transactionGenerator'; // Importer le générateur
+import { parseISO, startOfDay } from 'date-fns'; // Pour la date actuelle
 
 // --- DONNÉES INITIALES ---
 // Ces données sont utilisées uniquement si le localStorage est vide au premier lancement.
@@ -209,6 +211,64 @@ function App() {
       toast.success(`Règle récurrente "${ruleToDelete.name}" supprimée.`);
     }
   };
+
+  // --- Logique de Génération des Transactions Récurrentes ---
+  const processRecurringTransactions = () => {
+    const today = startOfDay(new Date()); // Date limite pour la génération
+    let anyRuleUpdated = false;
+    let allGeneratedTransactions: Transaction[] = [];
+
+    const updatedRules = recurringTransactionRules.map(rule => {
+      if (!rule.isActive) {
+        return rule; // Ne pas traiter les règles inactives
+      }
+
+      // La date de début de la vérification est la nextDueDate actuelle de la règle.
+      // generateTransactionsForRule s'attend à ce que nextDueDate soit la première date à potentiellement générer.
+      const { transactionsToCreate, newLastGeneratedDate, newNextDueDate } = generateTransactionsForRule(rule, today);
+
+      if (transactionsToCreate.length > 0) {
+        anyRuleUpdated = true;
+        const newTransactionsWithIds: Transaction[] = transactionsToCreate.map(txData => ({
+          ...txData,
+          id: `txn-${uuidv4()}`, // Donner un ID unique à chaque transaction générée
+          // On pourrait ajouter une réf à rule.id ici si on voulait les lier plus explicitement
+        }));
+        allGeneratedTransactions = [...allGeneratedTransactions, ...newTransactionsWithIds];
+
+        return { ...rule, lastGeneratedDate: newLastGeneratedDate || rule.lastGeneratedDate, nextDueDate: newNextDueDate };
+      }
+      // Si aucune transaction n'est générée mais que nextDueDate a changé (par ex. si l'ancienne était dans le passé mais
+      // que la nouvelle calculée est toujours dans le futur par rapport à 'today'), on met à jour la règle.
+      // Cela arrive si la règle était en retard mais qu'aucune instance n'est due jusqu'à 'today'.
+      if (newNextDueDate !== rule.nextDueDate) {
+        anyRuleUpdated = true;
+        return { ...rule, nextDueDate: newNextDueDate, lastGeneratedDate: newLastGeneratedDate || rule.lastGeneratedDate };
+      }
+
+      return rule;
+    });
+
+    if (allGeneratedTransactions.length > 0) {
+      setTransactions(prev => [...allGeneratedTransactions, ...prev]); // Ajouter au début pour visibilité
+      toast.info(`${allGeneratedTransactions.length} transaction(s) récurrente(s) générée(s).`);
+    }
+
+    if (anyRuleUpdated) {
+      setRecurringTransactionRules(updatedRules);
+    }
+  };
+
+  // TODO: Appeler processRecurringTransactions() dans un useEffect au montage,
+  // et potentiellement à d'autres moments stratégiques.
+  useEffect(() => {
+    processRecurringTransactions();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // Dépendances : Si on veut que ça tourne à chaque changement de règles ou de date (complexe),
+    // il faudrait ajouter recurringTransactionRules. Pour l'instant, seulement au montage.
+    // Si on le mettait, ça pourrait causer des boucles ou des exécutions trop fréquentes.
+    // Une exécution au montage est un bon début.
+  }, []); // Exécuter une seule fois au montage du composant App
 
   // --- RENDU DU COMPOSANT ---
   // Le composant App sert de conteneur pour le Layout et fournit les données via l'Outlet.
