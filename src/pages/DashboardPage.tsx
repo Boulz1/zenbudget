@@ -1,62 +1,20 @@
 // src/pages/DashboardPage.tsx
 import { useState, useMemo } from 'react';
 import { useAppContext } from '../components/Layout';
-import { addMonths, subMonths, format, isSameMonth } from 'date-fns';
+import { addMonths, subMonths, format } from 'date-fns'; // Removed isSameMonth, now in util
 import { fr } from 'date-fns/locale';
 import { BudgetProgressCard } from '../components/BudgetProgressCard';
 import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { calculateMonthlyData } from '../utils/dashboardCalculations'; // Import the utility function
 
 export function DashboardPage() {
   const { transactions, budgetRule, mainCategories } = useAppContext();
   const [selectedMonth, setSelectedMonth] = useState(new Date());
 
-  const mainCategoryMap = useMemo(() => new Map(mainCategories.map(cat => [cat.id, cat])), [mainCategories]);
-
-  // --- LOGIQUE DE CALCUL (optimisée avec useMemo) ---
+  // Use the utility function within useMemo
   const monthlyData = useMemo(() => {
-    const monthlyTransactions = transactions.filter(tx => isSameMonth(new Date(tx.date), selectedMonth));
-    
-    const totalIncome = monthlyTransactions
-      .filter(tx => tx.type === 'Revenu')
-      .reduce((sum, tx) => sum + tx.amount, 0);
-
-    const totalExpenses = monthlyTransactions
-      .filter(tx => tx.type === 'Dépense')
-      .reduce((sum, tx) => sum + tx.amount, 0);
-
-    const budgetBreakdown = {
-      needs: { budgeted: totalIncome * (budgetRule.needs / 100), spent: 0 },
-      wants: { budgeted: totalIncome * (budgetRule.wants / 100), spent: 0 },
-      savings: { budgeted: totalIncome * (budgetRule.savings / 100), spent: 0 },
-    };
-    
-    const categorySpending: Record<string, { name: string, amount: number }> = {};
-
-    monthlyTransactions
-      .filter(tx => tx.type === 'Dépense')
-      .forEach(tx => {
-        const category = mainCategoryMap.get(tx.mainCategoryId);
-        if (category) {
-          switch (category.budgetType) {
-            case 'Besoins': budgetBreakdown.needs.spent += tx.amount; break;
-            case 'Envies': budgetBreakdown.wants.spent += tx.amount; break;
-            case 'Épargne': budgetBreakdown.savings.spent += tx.amount; break;
-          }
-          if (!categorySpending[category.id]) {
-            categorySpending[category.id] = { name: category.name, amount: 0 };
-          }
-          categorySpending[category.id].amount += tx.amount;
-        }
-      });
-
-    return {
-      totalIncome,
-      totalExpenses,
-      balance: totalIncome - totalExpenses,
-      budgetBreakdown,
-      categorySpending: Object.values(categorySpending).sort((a,b) => b.amount - a.amount),
-    };
-  }, [transactions, selectedMonth, budgetRule, mainCategoryMap]);
+    return calculateMonthlyData(transactions, budgetRule, mainCategories, selectedMonth);
+  }, [transactions, budgetRule, mainCategories, selectedMonth]);
 
   // --- Fonctions de navigation de date ---
   const handlePreviousMonth = () => setSelectedMonth(prev => subMonths(prev, 1));
