@@ -1,5 +1,5 @@
 // src/components/EditSubCategoryModal.tsx
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react'; // Ajout de useRef
 import { useForm } from 'react-hook-form';
 import type { SubCategory, MainCategory } from '../types';
 
@@ -17,19 +17,76 @@ interface EditSubCategoryModalProps {
 }
 
 export function EditSubCategoryModal({ isOpen, onClose, onSave, subCategory, mainCategories }: EditSubCategoryModalProps) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const lastFocusedElementRef = useRef<HTMLElement | null>(null);
+  const modalTitleId = "editSubCategoryModalTitle";
+
   const { register, handleSubmit, reset, formState: { errors } } = useForm<EditSubCategoryFormData>();
 
   useEffect(() => {
-    if (subCategory && isOpen) {
-      reset({
-        name: subCategory.name,
-        parentCategoryId: subCategory.parentCategoryId,
-      });
+    if (isOpen) {
+      lastFocusedElementRef.current = document.activeElement as HTMLElement;
+      if (subCategory) {
+        reset({
+          name: subCategory.name,
+          parentCategoryId: subCategory.parentCategoryId,
+        });
+      }
+      closeButtonRef.current?.focus();
     } else if (!isOpen) {
-        // Reset on close to ensure clean state for next open, though defaultValues in useForm also helps
-        reset({ name: '', parentCategoryId: mainCategories[0]?.id || '' });
+      // Le reset on close ici peut être discutable si on veut garder les valeurs si l'utilisateur
+      // rouvre rapidement la même modale. Cependant, pour la cohérence avec AddCategoryModal
+      // et pour éviter des états inattendus si la `subCategory` prop change pendant que c'est fermé,
+      // un reset peut être plus sûr ou simplement laisser le `reset` dans le if(isOpen) faire son travail.
+      // Pour l'instant, on se fie au reset dans le bloc isOpen et à la restauration du focus.
+      lastFocusedElementRef.current?.focus();
     }
-  }, [subCategory, isOpen, reset, mainCategories]);
+  }, [subCategory, isOpen, reset]);
+
+  // Gestion de la touche Echap et du piégeage du focus
+  useEffect(() => {
+    if (!isOpen || !modalRef.current) return;
+
+    const modalElement = modalRef.current;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (event.key === 'Tab') {
+        const focusableElements = Array.from(
+          modalElement.querySelectorAll<HTMLElement>(
+            'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+          )
+        ).filter(el => el.offsetParent !== null);
+
+        if (focusableElements.length === 0) {
+          event.preventDefault();
+          return;
+        }
+        const firstElement = focusableElements[0];
+        const lastElement = focusableElements[focusableElements.length - 1];
+
+        if (event.shiftKey) {
+          if (document.activeElement === firstElement) {
+            lastElement.focus();
+            event.preventDefault();
+          }
+        } else {
+          if (document.activeElement === lastElement) {
+            firstElement.focus();
+            event.preventDefault();
+          }
+        }
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      document.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [isOpen, onClose]);
+
 
   if (!isOpen || !subCategory) {
     return null;
@@ -41,10 +98,23 @@ export function EditSubCategoryModal({ isOpen, onClose, onSave, subCategory, mai
 
   return (
     <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center z-50">
-      <div className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md p-6">
+      <div
+        ref={modalRef}
+        className="bg-white dark:bg-slate-800 rounded-lg shadow-xl w-full max-w-md p-6"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={modalTitleId}
+      >
         <div className="flex justify-between items-center mb-4">
-          <h2 className="text-xl font-bold">Modifier la Sous-Catégorie</h2>
-          <button onClick={onClose} className="text-2xl hover:text-red-500">×</button>
+          <h2 id={modalTitleId} className="text-xl font-bold">Modifier la Sous-Catégorie</h2>
+          <button
+            ref={closeButtonRef}
+            onClick={onClose}
+            className="text-2xl hover:text-red-500 focus:outline-none focus:ring-2 focus:ring-sky-500 rounded"
+            aria-label="Fermer la modale"
+          >
+            ×
+          </button>
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)}>
