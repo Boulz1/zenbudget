@@ -1,5 +1,6 @@
 // src/pages/TransactionsListPage.tsx
 import React from 'react';
+import { Link, useNavigate } from 'react-router-dom'; // useNavigate pour la redirection programmatique si besoin
 import { useAppContext } from '../components/Layout';
 import type { Transaction } from '../types';
 
@@ -15,19 +16,16 @@ const formatDate = (dateString: string) => {
 };
 
 export function TransactionsListPage() {
-  const { transactions, mainCategories, subCategories } = useAppContext();
+  const { transactions, mainCategories, subCategories, onDeleteTransaction } = useAppContext();
+  const navigate = useNavigate();
 
-  // On crée des "Maps" pour un accès rapide aux noms des catégories
-  // C'est plus performant que de faire .find() dans une boucle
   const mainCategoryMap = new Map(mainCategories.map(cat => [cat.id, cat.name]));
   const subCategoryMap = new Map(subCategories.map(sub => [sub.id, sub.name]));
 
-  // Trier les transactions de la plus récente à la plus ancienne
   const sortedTransactions = [...transactions].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
 
-  // Regrouper les transactions par jour
   const groupedTransactions = sortedTransactions.reduce((acc, transaction) => {
-    const date = transaction.date.split('T')[0]; // On garde seulement YYYY-MM-DD
+    const date = transaction.date.split('T')[0];
     if (!acc[date]) {
       acc[date] = [];
     }
@@ -36,7 +34,7 @@ export function TransactionsListPage() {
   }, {} as Record<string, Transaction[]>);
 
   const getCategoryName = (tx: Transaction) => {
-    const mainCatName = mainCategoryMap.get(tx.mainCategoryId) || 'Inconnue';
+    const mainCatName = mainCategoryMap.get(tx.mainCategoryId) || 'Non catégorisé';
     if (tx.subCategoryId) {
       const subCatName = subCategoryMap.get(tx.subCategoryId);
       if (subCatName) return `${mainCatName} / ${subCatName}`;
@@ -44,11 +42,16 @@ export function TransactionsListPage() {
     return mainCatName;
   };
 
+  const handleDelete = (transactionId: string) => {
+    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette transaction ?")) {
+      onDeleteTransaction(transactionId);
+    }
+  };
+
   return (
     <div>
       <header className="flex justify-between items-center mb-6">
         <h1 className="text-3xl font-bold">Liste des Transactions</h1>
-        {/* On pourrait ajouter un bouton de filtre ici plus tard */}
       </header>
 
       {transactions.length === 0 ? (
@@ -67,7 +70,6 @@ export function TransactionsListPage() {
                 {txsOnDate.map(tx => (
                   <li key={tx.id} className="p-4 flex justify-between items-center">
                     <div className="flex items-center gap-4">
-                      {/* Icone conditionnelle */}
                       <div className={`w-10 h-10 rounded-full flex items-center justify-center ${tx.type === 'Dépense' ? 'bg-red-100 dark:bg-red-900/50 text-red-600 dark:text-red-300' : 'bg-green-100 dark:bg-green-900/50 text-green-600 dark:text-green-300'}`}>
                         {tx.type === 'Dépense' ? '↓' : '↑'}
                       </div>
@@ -80,10 +82,21 @@ export function TransactionsListPage() {
                       <p className={`font-bold text-lg ${tx.type === 'Dépense' ? 'text-red-600' : 'text-green-600'}`}>
                         {tx.type === 'Dépense' ? '-' : '+'} {tx.amount.toFixed(2)} €
                       </p>
-                      {/* Boutons d'action futurs */}
                       <div className="text-xs space-x-2 mt-1">
-                        <button className="text-yellow-500 hover:underline">[E]</button>
-                        <button className="text-red-500 hover:underline">[D]</button>
+                        <Link
+                          to={`/transactions/${tx.id}/edit`}
+                          className="text-yellow-500 hover:underline"
+                          title="Modifier la transaction"
+                        >
+                          [E]
+                        </Link>
+                        <button
+                          onClick={() => handleDelete(tx.id)}
+                          className="text-red-500 hover:underline"
+                          title="Supprimer la transaction"
+                        >
+                          [D]
+                        </button>
                       </div>
                     </div>
                   </li>
