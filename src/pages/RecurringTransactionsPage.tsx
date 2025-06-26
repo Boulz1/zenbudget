@@ -1,19 +1,38 @@
 // src/pages/RecurringTransactionsPage.tsx
 import React, { useState } from 'react'; // useState ajouté
 import { useAppContext } from '../components/Layout';
-// import { Link } from 'react-router-dom'; // Plus besoin pour le bouton "Ajouter" si on utilise une modale
+// import { Link } from 'react-router-dom';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { AddRecurringRuleModal, type RecurringRuleFormData } from '../components/AddRecurringRuleModal'; // Importer la modale
+import { AddRecurringRuleModal, type RecurringRuleFormData } from '../components/AddRecurringRuleModal';
+import { EditRecurringRuleModal } from '../components/EditRecurringRuleModal'; // Importer la modale d'édition
+import type { RecurringTransactionRule } from '../types'; // Importer le type
 
 export function RecurringTransactionsPage() {
-  const { recurringTransactionRules, onDeleteRecurringRule, onUpdateRecurringRule, onAddRecurringRule } = useAppContext();
+  const {
+    recurringTransactionRules,
+    onDeleteRecurringRule,
+    onUpdateRecurringRule,
+    onAddRecurringRule
+  } = useAppContext();
+
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentRuleToEdit, setCurrentRuleToEdit] = useState<RecurringTransactionRule | null>(null);
 
   const handleSaveNewRule = (data: RecurringRuleFormData) => {
     onAddRecurringRule(data);
-    // La modale se ferme déjà d'elle-même après onSave, donc pas besoin de setIsAddModalOpen(false) ici
-    // si onClose est bien appelé dans la modale après onSave.
+    // La modale Add se ferme via son propre `onClose` qui est appelé dans son `onSubmit`
+  };
+
+  const handleOpenEditModal = (rule: RecurringTransactionRule) => {
+    setCurrentRuleToEdit(rule);
+    setIsEditModalOpen(true);
+  };
+
+  const handleSaveEditedRule = (id: string, data: RecurringRuleFormData) => {
+    onUpdateRecurringRule(id, data);
+    // La modale Edit se ferme via son propre `onClose`
   };
 
   const handleToggleActive = (ruleId: string, currentIsActive: boolean) => {
@@ -69,6 +88,18 @@ export function RecurringTransactionsPage() {
         onSave={handleSaveNewRule}
       />
 
+      {currentRuleToEdit && (
+        <EditRecurringRuleModal
+            isOpen={isEditModalOpen}
+            onClose={() => {
+                setIsEditModalOpen(false);
+                setCurrentRuleToEdit(null);
+            }}
+            onSave={handleSaveEditedRule}
+            ruleToEdit={currentRuleToEdit}
+        />
+      )}
+
       {recurringTransactionRules.length === 0 ? (
         <div className="text-center py-10 bg-white dark:bg-slate-800 rounded-lg shadow-md">
           <p className="text-gray-500 dark:text-gray-400">Aucune règle de transaction récurrente définie.</p>
@@ -114,7 +145,7 @@ export function RecurringTransactionsPage() {
                     <button onClick={() => handleToggleActive(rule.id, rule.isActive)} className={`text-xs p-1 rounded hover:underline ${rule.isActive ? 'text-amber-600 dark:text-amber-400' : 'text-emerald-600 dark:text-emerald-400'}`}>
                       {rule.isActive ? 'Désactiver' : 'Activer'}
                     </button>
-                    <button onClick={() => console.log("TODO: Edit rule", rule.id)} className="text-yellow-600 dark:text-yellow-400 hover:underline">Modifier</button>
+                    <button onClick={() => handleOpenEditModal(rule)} className="text-yellow-600 dark:text-yellow-400 hover:underline">Modifier</button>
                     <button onClick={() => handleDelete(rule.id)} className="text-red-600 dark:text-red-400 hover:underline">Supprimer</button>
                   </td>
                 </tr>
