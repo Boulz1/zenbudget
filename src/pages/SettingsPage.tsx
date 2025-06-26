@@ -1,6 +1,7 @@
 // src/pages/SettingsPage.tsx
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { toast } from 'sonner'; // Importer toast
 import type { BudgetRule } from '../types';
 import { useAppContext } from '../components/Layout';
 
@@ -28,7 +29,7 @@ export function SettingsPage() {
   const onSubmit = (data: FormValues) => {
     if (!isTotalOk) {
       // Bien que le bouton soit désactivé, une sécurité supplémentaire
-      alert('Le total des pourcentages doit être égal à 100.');
+      toast.error('Le total des pourcentages doit être égal à 100.');
       return;
     }
     onSaveBudgetRule({
@@ -36,7 +37,7 @@ export function SettingsPage() {
         wants: Number(data.wants),
         savings: Number(data.savings),
     });
-    alert('Règle budgétaire enregistrée !'); // Sera remplacé par une notification
+    toast.success('Règle budgétaire enregistrée !');
   };
 
   const validatePercentage = (value: number | string) => {

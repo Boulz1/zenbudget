@@ -1,6 +1,7 @@
 // src/components/Layout.tsx
 
 import { NavLink, Outlet, useOutletContext } from "react-router-dom";
+import { Toaster } from 'sonner'; // Import Toaster
 import type { BudgetRule, MainCategory, SubCategory, Transaction, TransactionFormData } from "../types";
 import type { CategoryFormData } from "./AddCategoryModal";
 
@@ -66,6 +67,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {children}
         </div>
       </main>
+      <Toaster richColors position="top-right" /> {/* Ajout du Toaster ici */}
     </div>
   );
 }

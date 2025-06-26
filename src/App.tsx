@@ -1,11 +1,11 @@
 // src/App.tsx
-
 import { useLocalStorage } from './hooks/useLocalStorage';
 import type { MainCategory, SubCategory, Transaction, BudgetRule, TransactionFormData } from './types';
 import type { CategoryFormData } from './components/AddCategoryModal';
 import { v4 as uuidv4 } from 'uuid';
 import { Outlet } from 'react-router-dom';
 import { Layout } from './components/Layout';
+import { toast } from 'sonner'; // Importer toast
 
 // --- DONNÉES INITIALES ---
 // Ces données sont utilisées uniquement si le localStorage est vide au premier lancement.
@@ -49,18 +49,21 @@ function App() {
         ...formData.data,
       };
       setMainCategories(prev => [...prev, newMainCategory]);
+      toast.success(`Catégorie principale "${newMainCategory.name}" ajoutée.`);
     } else {
       const newSubCategory: SubCategory = {
         id: `sub-${uuidv4()}`,
         ...formData.data,
       };
       setSubCategories(prev => [...prev, newSubCategory]);
+      toast.success(`Sous-catégorie "${newSubCategory.name}" ajoutée.`);
     }
   };
 
   // Fonction pour sauvegarder la règle budgétaire
   const handleSaveBudgetRule = (newRule: BudgetRule) => {
     setBudgetRule(newRule);
+    // Notification gérée dans SettingsPage.tsx directement après la sauvegarde réussie
   };
   
   // Fonction pour ajouter une transaction
@@ -69,8 +72,8 @@ function App() {
       id: `txn-${uuidv4()}`,
       ...formData,
     };
-    // On ajoute la nouvelle transaction au début du tableau pour un affichage immédiat
     setTransactions(prev => [newTransaction, ...prev]);
+    toast.success(`Transaction de ${newTransaction.amount.toFixed(2)}€ ajoutée.`);
   };
 
   // --- CRUD pour Catégories Principales ---
@@ -78,6 +81,24 @@ function App() {
     setMainCategories(prev =>
       prev.map(cat => cat.id === id ? { ...cat, ...data } : cat)
     );
+    toast.success(`Catégorie "${data.name}" mise à jour.`);
+  };
+
+  const handleDeleteMainCategory = (id: string) => {
+    const categoryToDelete = mainCategories.find(cat => cat.id === id);
+    setMainCategories(prev => prev.filter(cat => cat.id !== id));
+    setSubCategories(prev => prev.filter(sub => sub.parentCategoryId !== id));
+    setTransactions(prev =>
+      prev.map(tx => {
+        if (tx.mainCategoryId === id) {
+          return { ...tx, mainCategoryId: '', subCategoryId: undefined };
+        }
+        return tx;
+      })
+    );
+    if (categoryToDelete) {
+      toast.success(`Catégorie principale "${categoryToDelete.name}" et ses sous-catégories supprimées.`);
+    }
   };
 
   // --- CRUD pour Sous-Catégories ---
@@ -85,11 +106,12 @@ function App() {
     setSubCategories(prev =>
       prev.map(sub => sub.id === id ? { ...sub, ...data } : sub)
     );
+    toast.success(`Sous-catégorie "${data.name}" mise à jour.`);
   };
 
   const handleDeleteSubCategory = (id: string) => {
+    const subCategoryToDelete = subCategories.find(sub => sub.id === id);
     setSubCategories(prev => prev.filter(sub => sub.id !== id));
-    // Dé-catégoriser (seulement la sous-catégorie) les transactions liées
     setTransactions(prev =>
       prev.map(tx => {
         if (tx.subCategoryId === id) {
@@ -98,17 +120,25 @@ function App() {
         return tx;
       })
     );
+    if (subCategoryToDelete) {
+      toast.success(`Sous-catégorie "${subCategoryToDelete.name}" supprimée.`);
+    }
   };
 
   // --- CRUD pour Transactions ---
   const handleUpdateTransaction = (id: string, data: TransactionFormData) => {
     setTransactions(prev =>
-      prev.map(tx => tx.id === id ? { ...tx, ...data, id } : tx) // Assurer que l'id est conservé
+      prev.map(tx => tx.id === id ? { ...tx, ...data, id } : tx)
     );
+    toast.success(`Transaction de ${data.amount.toFixed(2)}€ mise à jour.`);
   };
 
   const handleDeleteTransaction = (id: string) => {
+    const transactionToDelete = transactions.find(tx => tx.id === id);
     setTransactions(prev => prev.filter(tx => tx.id !== id));
+    if (transactionToDelete) {
+      toast.success(`Transaction de ${transactionToDelete.amount.toFixed(2)}€ supprimée.`);
+    }
   };
 
   // --- RENDU DU COMPOSANT ---
