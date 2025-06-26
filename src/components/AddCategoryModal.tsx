@@ -13,24 +13,62 @@ interface AddCategoryModalProps {
   onClose: () => void;
   onSave: (formData: CategoryFormData) => void;
   mainCategories: MainCategory[];
+  initialType?: 'main' | 'sub';
+  initialParentCategoryId?: string;
 }
 
-export function AddCategoryModal({ isOpen, onClose, onSave, mainCategories }: AddCategoryModalProps) {
-  const [categoryType, setCategoryType] = useState<'main' | 'sub'>('main');
+export function AddCategoryModal({
+  isOpen,
+  onClose,
+  onSave,
+  mainCategories,
+  initialType = 'main',
+  initialParentCategoryId
+}: AddCategoryModalProps) {
+  const [categoryType, setCategoryType] = useState<'main' | 'sub'>(initialType);
   const [mainCatName, setMainCatName] = useState('');
   const [budgetType, setBudgetType] = useState<BudgetType>('Besoins');
   const [subCatName, setSubCatName] = useState('');
-  const [parentCatId, setParentCatId] = useState(mainCategories[0]?.id || '');
+  // Set initial parentCatId based on prop, or default to first main category if type is 'sub'
+  const [parentCatId, setParentCatId] = useState(
+    initialType === 'sub' && initialParentCategoryId
+    ? initialParentCategoryId
+    : mainCategories[0]?.id || ''
+  );
 
   useEffect(() => {
     if (isOpen) {
-      setCategoryType('main');
+      // Reset fields when modal opens, but respect initial props
+      setCategoryType(initialType);
       setMainCatName('');
-      setBudgetType('Besoins');
+      setBudgetType('Besoins'); // Default budget type
       setSubCatName('');
-      setParentCatId(mainCategories[0]?.id || '');
+
+      if (initialType === 'sub') {
+        if (initialParentCategoryId) {
+          setParentCatId(initialParentCategoryId);
+        } else if (mainCategories.length > 0) {
+          setParentCatId(mainCategories[0].id); // Default if no specific parent ID given for sub
+        } else {
+          setParentCatId(''); // No parent available
+        }
+      } else { // initialType === 'main'
+        // Ensure parentCatId is sensible if user switches to 'sub' later
+        setParentCatId(mainCategories[0]?.id || '');
+      }
     }
-  }, [isOpen, mainCategories]);
+  }, [isOpen, initialType, initialParentCategoryId, mainCategories]);
+
+  // Update parentCatId if categoryType changes to 'sub' and parentCatId is not set or not valid
+  useEffect(() => {
+    if (categoryType === 'sub') {
+      const isValidParent = mainCategories.some(mc => mc.id === parentCatId);
+      if (!parentCatId || !isValidParent) {
+        setParentCatId(mainCategories[0]?.id || '');
+      }
+    }
+  }, [categoryType, mainCategories, parentCatId]);
+
 
   if (!isOpen) {
     return null;
