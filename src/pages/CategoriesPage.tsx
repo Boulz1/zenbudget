@@ -1,8 +1,9 @@
 // src/pages/CategoriesPage.tsx
-import { useState } from 'react';
+import React, { useState } from 'react'; // Ajout de React pour React.ReactNode
 import { AddCategoryModal, type CategoryFormData } from '../components/AddCategoryModal';
 import { EditMainCategoryModal, type EditMainCategoryFormData } from '../components/EditMainCategoryModal';
 import { EditSubCategoryModal, type EditSubCategoryFormData } from '../components/EditSubCategoryModal';
+import { ConfirmationModal } from '../components/ConfirmationModal'; // Import de la nouvelle modale
 import { useAppContext } from '../components/Layout'; // Importer notre hook
 import type { MainCategory, SubCategory } from '../types';
 
@@ -26,6 +27,13 @@ export function CategoriesPage() {
 
   const [isEditSubCatModalOpen, setIsEditSubCatModalOpen] = useState(false);
   const [currentEditingSubCat, setCurrentEditingSubCat] = useState<SubCategory | null>(null);
+
+  // États pour la modale de confirmation
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState('');
+  const [confirmMessage, setConfirmMessage] = useState<React.ReactNode>('');
+
 
   // Opens the modal for adding a general category (defaults to main)
   const handleOpenGenericAddModal = () => {
@@ -78,16 +86,63 @@ export function CategoriesPage() {
     handleCloseEditSubCatModal();
   };
 
-  const handleDeleteMainCategory = (id: string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette catégorie principale ? Toutes les sous-catégories associées seront également supprimées et les transactions liées seront dé-catégorisées.")) {
-      onDeleteMainCategory(id);
-    }
+  const openConfirmationModal = (title: string, message: React.ReactNode, action: () => void) => {
+    setConfirmTitle(title);
+    setConfirmMessage(message);
+    setConfirmAction(() => action); // Stocker l'action
+    setIsConfirmModalOpen(true);
   };
 
-  const handleDeleteSubCategory = (id: string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette sous-catégorie ? Les transactions liées seront dé-catégorisées de cette sous-catégorie.")) {
-      onDeleteSubCategory(id);
+  const handleConfirm = () => {
+    if (confirmAction) {
+      confirmAction();
     }
+    setIsConfirmModalOpen(false);
+    setConfirmAction(null);
+  };
+
+  const handleCancelConfirm = () => {
+    setIsConfirmModalOpen(false);
+    setConfirmAction(null);
+  };
+
+
+  const handleDeleteMainCategoryRequest = (id: string) => {
+    const categoryToDelete = mainCategories.find(cat => cat.id === id);
+    if (!categoryToDelete) return;
+
+    const message = (
+      <>
+        <p>Êtes-vous sûr de vouloir supprimer la catégorie principale <strong>"{categoryToDelete.name}"</strong> ?</p>
+        <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
+          Attention : Toutes les sous-catégories associées seront également supprimées et les transactions liées perdront leur catégorisation.
+        </p>
+      </>
+    );
+    openConfirmationModal(
+      "Confirmer la suppression",
+      message,
+      () => onDeleteMainCategory(id)
+    );
+  };
+
+  const handleDeleteSubCategoryRequest = (id: string) => {
+    const subCategoryToDelete = subCategories.find(sub => sub.id === id);
+    if (!subCategoryToDelete) return;
+
+    const message = (
+      <>
+        <p>Êtes-vous sûr de vouloir supprimer la sous-catégorie <strong>"{subCategoryToDelete.name}"</strong> ?</p>
+        <p className="mt-2 text-sm text-yellow-600 dark:text-yellow-400">
+          Attention : Les transactions liées perdront leur assignation à cette sous-catégorie.
+        </p>
+      </>
+    );
+    openConfirmationModal(
+      "Confirmer la suppression",
+      message,
+      () => onDeleteSubCategory(id)
+    );
   };
 
   return (
@@ -120,15 +175,17 @@ export function CategoriesPage() {
                 <div className="flex items-center space-x-2">
                   <button
                     onClick={() => handleOpenEditMainCatModal(mainCat)}
-                    className="text-sm text-yellow-500 hover:text-yellow-400"
+                    className="font-medium text-sm text-yellow-600 dark:text-yellow-400 hover:underline"
+                    aria-label={`Modifier la catégorie principale ${mainCat.name}`}
                   >
                     Modifier
                   </button>
                   <button
-                    onClick={() => handleDeleteMainCategory(mainCat.id)}
-                    className="text-lg text-red-500 hover:text-red-400"
+                    onClick={() => handleDeleteMainCategoryRequest(mainCat.id)} // Modifié ici
+                    className="font-medium text-sm text-red-600 dark:text-red-400 hover:underline"
+                    aria-label={`Supprimer la catégorie principale ${mainCat.name}`}
                   >
-                    X
+                    Supprimer
                   </button>
                 </div>
               </div>
@@ -140,18 +197,20 @@ export function CategoriesPage() {
                     {relatedSubCategories.map((subCat) => (
                       <li key={subCat.id} className="flex justify-between items-center bg-slate-100 dark:bg-slate-700/50 p-2 rounded-md">
                         <span>{subCat.name}</span>
-                        <div className="flex items-center space-x-2 text-sm">
+                        <div className="flex items-center space-x-3 text-sm"> {/* Ajustement de l'espacement */}
                           <button
                             onClick={() => handleOpenEditSubCatModal(subCat)}
-                            className="hover:text-yellow-400" title="Éditer"
+                            className="font-medium text-yellow-600 dark:text-yellow-400 hover:underline"
+                            aria-label={`Modifier la sous-catégorie ${subCat.name}`}
                           >
-                            [e]
+                            Modifier
                           </button>
                           <button
-                            onClick={() => handleDeleteSubCategory(subCat.id)}
-                            className="hover:text-red-400" title="Supprimer"
+                            onClick={() => handleDeleteSubCategoryRequest(subCat.id)} // Modifié ici
+                            className="font-medium text-red-600 dark:text-red-400 hover:underline"
+                            aria-label={`Supprimer la sous-catégorie ${subCat.name}`}
                           >
-                            [d]
+                            Supprimer
                           </button>
                         </div>
                       </li>
@@ -202,6 +261,17 @@ export function CategoriesPage() {
           mainCategories={mainCategories}
         />
       )}
+
+      {/* Modale de Confirmation */}
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={handleCancelConfirm}
+        onConfirm={handleConfirm}
+        title={confirmTitle}
+        message={confirmMessage}
+        confirmButtonText="Supprimer"
+        confirmButtonVariant="danger"
+      />
     </div>
   );
 }

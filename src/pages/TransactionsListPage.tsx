@@ -1,7 +1,8 @@
 // src/pages/TransactionsListPage.tsx
-import React from 'react';
-import { Link, useNavigate } from 'react-router-dom'; // useNavigate pour la redirection programmatique si besoin
+import React, { useState } from 'react'; // Ajout de useState
+import { Link, useNavigate } from 'react-router-dom';
 import { useAppContext } from '../components/Layout';
+import { ConfirmationModal } from '../components/ConfirmationModal'; // Import
 import type { Transaction } from '../types';
 
 // Fonction utilitaire pour formater la date
@@ -18,6 +19,11 @@ const formatDate = (dateString: string) => {
 export function TransactionsListPage() {
   const { transactions, mainCategories, subCategories, onDeleteTransaction } = useAppContext();
   const navigate = useNavigate();
+  // États pour la modale de confirmation
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [confirmAction, setConfirmAction] = useState<(() => void) | null>(null);
+  const [confirmTitle, setConfirmTitle] = useState('');
+  const [confirmMessage, setConfirmMessage] = useState<React.ReactNode>('');
 
   const mainCategoryMap = new Map(mainCategories.map(cat => [cat.id, cat.name]));
   const subCategoryMap = new Map(subCategories.map(sub => [sub.id, sub.name]));
@@ -42,10 +48,41 @@ export function TransactionsListPage() {
     return mainCatName;
   };
 
-  const handleDelete = (transactionId: string) => {
-    if (window.confirm("Êtes-vous sûr de vouloir supprimer cette transaction ?")) {
-      onDeleteTransaction(transactionId);
+  const openConfirmationModal = (title: string, message: React.ReactNode, action: () => void) => {
+    setConfirmTitle(title);
+    setConfirmMessage(message);
+    setConfirmAction(() => action);
+    setIsConfirmModalOpen(true);
+  };
+
+  const handleActualConfirm = () => {
+    if (confirmAction) {
+      confirmAction();
     }
+    setIsConfirmModalOpen(false);
+    setConfirmAction(null);
+  };
+
+  const handleCancelConfirm = () => {
+    setIsConfirmModalOpen(false);
+    setConfirmAction(null);
+  };
+
+  const handleDeleteRequest = (transactionId: string) => {
+    const txToDelete = transactions.find(tx => tx.id === transactionId);
+    if (!txToDelete) return;
+
+    const message = (
+      <p>
+        Êtes-vous sûr de vouloir supprimer la transaction de <strong>{txToDelete.amount.toFixed(2)}€</strong>
+        ({getCategoryName(txToDelete)}) du {formatDate(txToDelete.date)} ?
+      </p>
+    );
+    openConfirmationModal(
+      "Confirmer la suppression",
+      message,
+      () => onDeleteTransaction(transactionId)
+    );
   };
 
   return (
@@ -82,20 +119,20 @@ export function TransactionsListPage() {
                       <p className={`font-bold text-lg ${tx.type === 'Dépense' ? 'text-red-600' : 'text-green-600'}`}>
                         {tx.type === 'Dépense' ? '-' : '+'} {tx.amount.toFixed(2)} €
                       </p>
-                      <div className="text-xs space-x-2 mt-1">
+                      <div className="text-sm space-x-3 mt-1"> {/* Augmentation de la taille et de l'espacement */}
                         <Link
                           to={`/transactions/${tx.id}/edit`}
-                          className="text-yellow-500 hover:underline"
-                          title="Modifier la transaction"
+                          className="font-medium text-yellow-600 dark:text-yellow-400 hover:underline"
+                          aria-label={`Modifier la transaction ${getCategoryName(tx)} de ${tx.amount.toFixed(2)}€ du ${formatDate(tx.date)}`}
                         >
-                          [E]
+                          Modifier
                         </Link>
                         <button
-                          onClick={() => handleDelete(tx.id)}
-                          className="text-red-500 hover:underline"
-                          title="Supprimer la transaction"
+                          onClick={() => handleDeleteRequest(tx.id)} // Modifié ici
+                          className="font-medium text-red-600 dark:text-red-400 hover:underline"
+                          aria-label={`Supprimer la transaction ${getCategoryName(tx)} de ${tx.amount.toFixed(2)}€ du ${formatDate(tx.date)}`}
                         >
-                          [D]
+                          Supprimer
                         </button>
                       </div>
                     </div>
@@ -106,6 +143,15 @@ export function TransactionsListPage() {
           ))}
         </div>
       )}
+      <ConfirmationModal
+        isOpen={isConfirmModalOpen}
+        onClose={handleCancelConfirm}
+        onConfirm={handleActualConfirm}
+        title={confirmTitle}
+        message={confirmMessage}
+        confirmButtonText="Supprimer"
+        confirmButtonVariant="danger"
+      />
     </div>
   );
 }
